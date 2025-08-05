@@ -11,7 +11,7 @@ from segmentation_model import SegmentationModel
 import json
 import tqdm
 
-with open('Data/segmentation_filepaths.json') as f:
+with open('Data/segmentation_training.json') as f:
     data_dict = json.load(f)
 
 data_list = data_dict['Segmentation_Training']
@@ -38,7 +38,7 @@ loader = DataLoader(
 criterion = nn.CrossEntropyLoss()
 optimizer = Adam(params=CT_Model.parameters(), lr=1e-4)
 
-num_epochs = 10
+num_epochs = 5
 CT_Model.to(device)
 
 epoch_losses = []
@@ -47,19 +47,19 @@ for epoch in range(num_epochs):
     CT_Model.train()
     running_loss = 0.0
     for batch in tqdm.tqdm(loader):
-        for pair in batch:
-            images, labels = pair['Image'].to(device), pair['Label'].to(device)
-            labels = torch.squeeze(labels, dim=1)
-            
-            outputs = CT_Model(images)
-            
-            loss = criterion(outputs, labels.long())
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            
-            running_loss += loss.item()
         
+        images = torch.stack([item['Image'].squeeze(0) for item in batch]).to(device)
+        labels = torch.stack([item['Label'].squeeze(0) for item in batch]).squeeze(1).to(device).long()
+        
+        outputs = CT_Model(images)
+        
+        loss = criterion(outputs, labels.long())
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item()
+            
     avg_loss = running_loss / len(loader)
     epoch_losses.append(avg_loss)
     print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {avg_loss:.4f}')
